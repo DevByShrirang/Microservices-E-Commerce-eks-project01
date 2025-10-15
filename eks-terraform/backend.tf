@@ -7,7 +7,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "mycompany-billing01-dev"
+    bucket = "mycompany-billing-dev01"
     key    = "k8/terraform.tfstate"
     region = "us-east-2"
   }

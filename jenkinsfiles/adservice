@@ -2,7 +2,7 @@ pipeline {
     agent any 
 
     environment {
-        GIT_REPO_NAME = "Microservices-E-Commerce-eks-project"
+        GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
         GIT_EMAIL = "shrirang.patil1812@gmail.com"
         GIT_USER_NAME = "DevByShrirang"
         IMAGE_NAME = "adservice"
@@ -19,7 +19,7 @@ pipeline {
 
         stage('Checkout from Git') {
             steps {
-                git branch: 'master', url: 'https://github.com/DevByShrirang/Microservices-E-Commerce-eks-project.git'
+                git branch: 'master', url: 'https://github.com/DevByShrirang/Microservices-E-Commerce-eks-project01.git'
             }
         }
 

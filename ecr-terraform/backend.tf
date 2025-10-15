@@ -7,11 +7,12 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "mycompany-billing01-dev"
+    bucket = "mycompany-billing-dev01"
     key    = "ecr/terraform.tfstate"
     region = "us-east-2"
   }
 
   required_version = ">= 1.6.3"
 }
+
 

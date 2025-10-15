@@ -3,10 +3,10 @@ provider "aws" {
 }
 
 resource "aws_s3_bucket" "bucket1" {
-  bucket = "mycompany-billing-dev01"
+  bucket = "mycompany-billing-dev03"
 
   tags = {
-    Name        = "mycompany-billing-dev01"
+    Name        = "mycompany-billing-dev03"
     Environment = "dev"
   }
 }
@@ -19,10 +19,10 @@ resource "aws_s3_bucket_versioning" "bucket1_versioning" {
 }
 
 resource "aws_s3_bucket" "bucket2" {
-  bucket = "mycompany-billing-dev02"
+  bucket = "mycompany-billing-dev04"
 
   tags = {
-    Name        = "mycompany-billing-dev02"
+    Name        = "mycompany-billing-dev04"
     Environment = "dev"
   }
 }

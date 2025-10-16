@@ -1,68 +1,49 @@
-pipeline {
-    agent any 
+@Library('jenkins-shared-library') _
 
+pipeline {
+    agent any
     environment {
-        GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
+        ACCOUNT_ID = "442042505508"
+        REGION = "us-east-2"
         GIT_EMAIL = "shrirang.patil1812@gmail.com"
         GIT_USER_NAME = "DevByShrirang"
-        IMAGE_NAME = "adservice"
-        REPO_URL = "442042505508.dkr.ecr.us-east-2.amazonaws.com/adservice"
-        YAML_FILE = "adservice.yaml"
+        GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
+        // Default service (can be overridden per build)
+        SERVICE_NAME = "adservice"
     }
 
     stages {
-        stage('Cleaning Workspace') {
+        stage('Clean Workspace') {
+            steps { cleanWs() }
+        }
+
+        stage('Checkout') {
             steps {
-                cleanWs()
+                git branch: 'master', url: "https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git"
             }
         }
 
-        stage('Checkout from Git') {
+        stage('Build & Push Docker') {
             steps {
-                git branch: 'master', url: 'https://github.com/DevByShrirang/Microservices-E-Commerce-eks-project01.git'
+                buildAndPush(
+                    SERVICE_NAME: env.SERVICE_NAME,
+                    ACCOUNT_ID: env.ACCOUNT_ID,
+                    REGION: env.REGION
+                )
             }
         }
 
-        stage("Docker Image Build") {
+        stage('Update Manifest') {
             steps {
-                script {
-                    dir('src/adservice') {
-                        sh 'docker system prune -f'
-                        sh 'docker container prune -f'
-                        sh 'docker build -t adservice .'
-                    }
-                }
-            }
-        }
-
-        stage("ECR Image Pushing") {
-            steps {
-                script {
-                    sh '''
-                    aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 442042505508.dkr.ecr.us-east-2.amazonaws.com
-                    docker tag adservice:latest 442042505508.dkr.ecr.us-east-2.amazonaws.com/adservice:${BUILD_NUMBER}
-                    docker push 442042505508.dkr.ecr.us-east-2.amazonaws.com/adservice:${BUILD_NUMBER}
-                    '''
-                }
-            }
-        }
-
-        stage('Update Deployment file') {
-            steps {
-                dir('kubernetes-files') {
-                    withCredentials([string(credentialsId: 'my-git-pattoken', variable: 'git_token')]) {
-                        sh '''
-                            git config user.email "${GIT_EMAIL}"
-                            git config user.name "${GIT_USER_NAME}"
-                            echo $BUILD_NUMBER
-
-                            sed -i "s#image:.*#image: ${REPO_URL}:$BUILD_NUMBER#g" ${YAML_FILE}
-                            git add .
-                            git commit -m "Update ${IMAGE_NAME} Image to version ${BUILD_NUMBER}"
-                            git push https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:master
-                        '''
-                    }
-                }
+                updateManifest(
+                    SERVICE_NAME: env.SERVICE_NAME,
+                    ACCOUNT_ID: env.ACCOUNT_ID,
+                    REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${env.SERVICE_NAME}",
+                    YAML_FILE: "${env.SERVICE_NAME}.yaml",
+                    GIT_EMAIL: env.GIT_EMAIL,
+                    GIT_USER: env.GIT_USER_NAME,
+                    GIT_REPO: env.GIT_REPO_NAME
+                )
             }
         }
     }

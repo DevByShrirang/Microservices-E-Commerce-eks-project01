@@ -34,8 +34,11 @@ pipeline {
                             // Build & push Docker image
                             buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
 
-                            // YAML file path (directly under kubernetes-files)
+                            // Determine YAML file dynamically (.yaml or .yml)
                             def yamlFile = "kubernetes-files/${s}.yaml"
+                            if (!fileExists(yamlFile)) {
+                                yamlFile = "kubernetes-files/${s}.yml"
+                            }
 
                             if (fileExists(yamlFile)) {
                                 echo "Updating manifest for file: ${yamlFile}"

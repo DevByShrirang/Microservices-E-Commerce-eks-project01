@@ -34,20 +34,23 @@ pipeline {
                             buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
 
                             // Update Kubernetes manifest only if YAML exists
-                            def yamlFiles = sh(script: "ls kubernetes-files/${s}/*.yaml 2>/dev/null || echo ''", returnStdout: true).trim()
-                            if (yamlFiles) {
-                                updateManifest(
-                                    SERVICE_NAME: s,
-                                    ACCOUNT_ID: env.ACCOUNT_ID,
-                                    REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
-                                    YAML_FILE: "${s}.yaml",
-                                    GIT_EMAIL: env.GIT_EMAIL,
-                                    GIT_USER: env.GIT_USER_NAME,
-                                    GIT_REPO: env.GIT_REPO_NAME
-                                )
-                            } else {
-                                echo "No YAML found for service: ${s}, skipping manifest update."
-                            }
+                            ddef yamlFiles = sh(script: "ls kubernetes-files/${s}/*.yaml 2>/dev/null || echo ''", returnStdout: true).trim()
+if (yamlFiles) {
+    yamlFiles.split("\n").each { file ->
+        echo "Updating manifest for file: ${file}"
+        updateManifest(
+            SERVICE_NAME: s,
+            ACCOUNT_ID: env.ACCOUNT_ID,
+            REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
+            YAML_FILE: file,  // <-- pass the actual file path
+            GIT_EMAIL: env.GIT_EMAIL,
+            GIT_USER: env.GIT_USER_NAME,
+            GIT_REPO: env.GIT_REPO_NAME
+        )
+    }
+} else {
+    echo "No YAML found for service: ${s}, skipping manifest update."
+}
                         } catch (err) {
                             echo "Service ${s} failed, skipping to next. Error: ${err}"
                         }

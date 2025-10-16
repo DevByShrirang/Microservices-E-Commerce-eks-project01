@@ -1,44 +1,69 @@
-@Library('jenkins-shared-library') _
-
 pipeline {
-    agent any
-    environment {
-        ACCOUNT_ID = "442042505508"
-        REGION = "us-east-2"
-        GIT_EMAIL = "shrirang.patil1812@gmail.com"
-        GIT_USER_NAME = "DevByShrirang"
-        GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
-    }
+    agent any 
 
     stages {
-        stage('Clean Workspace') {
-            steps { cleanWs() }
-        }
-
-        stage('Checkout') {
+        stage('Cleaning Workspace') {
             steps {
-                git branch: 'master', url: "https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git"
+                cleanWs()
             }
         }
-
-        stage('Build & Deploy All Services') {
+        stage('Checkout from Git') {
+            steps {
+                git branch: 'master', url: 'https://github.com/DevByShrirang/Microservices-E-Commerce-eks-project01.git'
+            }
+        }
+        stage("Docker Image Build") {
             steps {
                 script {
-                    def services = ["adservice","cartservice","checkoutservice","currencyservice","emailservice",
-                                    "frontend","loadgenerator","paymentservice","productcatalogservice",
-                                    "recommendationservice","shippingservice"]
+                    dir('src/adservice/src') {
+                        sh 'docker system prune -f'
+                        sh 'docker container prune -f'
+                        sh 'docker build -t adservice .'
+                    }
+                }
+            }
+        }
+        stage("ECR Image Pushing") {
+            steps {
+                script {
+                    sh '''
+                    #Retrieve an authentication token and authenticate your Docker client to your registry. Use the AWS CLI:
+                    aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 442042505508.dkr.ecr.us-east-2.amazonaws.com
 
-                    for (s in services) {
-                        buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
-                        updateManifest(
-                            SERVICE_NAME: s,
-                            ACCOUNT_ID: env.ACCOUNT_ID,
-                            REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
-                            YAML_FILE: "${s}.yaml",
-                            GIT_EMAIL: env.GIT_EMAIL,
-                            GIT_USER: env.GIT_USER_NAME,
-                            GIT_REPO: env.GIT_REPO_NAME
-                        )
+                    #After the build completes, tag your image so you can push the image to this repository:
+                    docker tag adservice:latest 442042505508.dkr.ecr.us-east-2.amazonaws.com/adservice:${BUILD_NUMBER}
+
+                    #Run the following command to push this image to your newly created AWS repository:
+                    docker push 442042505508.dkr.ecr.us-east-2.amazonaws.com/adservice:${BUILD_NUMBER}
+                    '''
+                }
+            }
+        }
+        stage('Update Deployment file') {
+            environment {
+                GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
+                GIT_EMAIL = "shrirang.patil1812@gmail.com"
+                GIT_USER_NAME = "DevByShrirang"
+                IMAGE_NAME = "adservice"
+                REPO_URL = "442042505508.dkr.ecr.us-east-2.amazonaws.com/adservice"
+                YAML_FILE = "adservice.yaml"
+            }
+            steps {
+                dir('kubernetes-files') {
+                    withCredentials([string(credentialsId: 'my-git-pattoken', variable: 'git_token')]) {
+                        sh '''
+                            git config user.email "${GIT_EMAIL}"
+                            git config user.name "${GIT_USER_NAME}"
+                            BUILD_NUMBER=${BUILD_NUMBER}
+                            echo $BUILD_NUMBER
+
+                            # push this image to your git hub
+                            sed -i "s#image:.*#image: ${REPO_URL}:$BUILD_NUMBER#g" ${YAML_FILE}
+                            git add .
+                            git commit -m "Update ${IMAGE_NAME} Image to version \${BUILD_NUMBER}"
+                            git push https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:master
+        
+                        '''
                     }
                 }
             }

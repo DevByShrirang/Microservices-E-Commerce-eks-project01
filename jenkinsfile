@@ -2,12 +2,14 @@
 
 pipeline {
     agent any
+
     environment {
         ACCOUNT_ID = "442042505508"
         REGION = "us-east-2"
         GIT_EMAIL = "shrirang.patil1812@gmail.com"
         GIT_USER_NAME = "DevByShrirang"
         GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
+        IMAGE_TAG = "latest" // you can dynamically update if needed
     }
 
     stages {
@@ -36,7 +38,7 @@ pipeline {
 
                             // Find all YAML files for this service
                             def yamlFiles = sh(
-                                script: "find kubernetes-files/${s}/ -type f -name '*.yaml' 2>/dev/null || echo ''",
+                                script: "ls kubernetes-files/${s}/*.yaml 2>/dev/null || echo ''",
                                 returnStdout: true
                             ).trim()
 
@@ -44,12 +46,12 @@ pipeline {
                                 yamlFiles.split("\n").each { file ->
                                     echo "Updating manifest for file: ${file}"
 
-                                    // Dynamically replace image tag in YAML
+                                    // Update image tag dynamically using sed (preserves indentation)
                                     sh """
-                                        sed -i 's|image:.*|image: ${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}:latest|' ${file}
+                                        sed -i '/image:/ s|:.*\$|:${env.IMAGE_TAG}|' ${file}
                                     """
 
-                                    // Optionally call updateManifest if you want Git commit/push
+                                    // Optional: push changes to git (if updateManifest handles it)
                                     updateManifest(
                                         SERVICE_NAME: s,
                                         ACCOUNT_ID: env.ACCOUNT_ID,

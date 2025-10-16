@@ -8,8 +8,6 @@ pipeline {
         GIT_EMAIL = "shrirang.patil1812@gmail.com"
         GIT_USER_NAME = "DevByShrirang"
         GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
-        SRC_DIR = "src"
-        KUBE_DIR = "kubernetes-files"
     }
 
     stages {
@@ -26,31 +24,32 @@ pipeline {
         stage('Build & Deploy All Services') {
             steps {
                 script {
-                    // Get all service directories dynamically from src/
-                    def services = sh(script: "ls -1 ${SRC_DIR}", returnStdout: true).trim().split("\n")
+                    // Dynamically get all service names from src/ directory
+                    def services = sh(script: "ls src", returnStdout: true).trim().split("\n")
 
                     for (s in services) {
-                        // Build and push Docker image
+                        echo "Processing service: ${s}"
+
+                        // Build & push Docker image
                         buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
 
-                        // Dynamically find YAML file in kubernetes-files/<service>
-                        def yamlFiles = sh(
-                            script: "ls ${KUBE_DIR}/${s}/*.yaml || echo ''", 
-                            returnStdout: true
-                        ).trim().split("\n")
-
-                        for (y in yamlFiles) {
-                            def yamlName = y.tokenize('/').last()
-                            updateManifest(
-                                SERVICE_NAME: s,
-                                ACCOUNT_ID: env.ACCOUNT_ID,
-                                REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
-                                YAML_FILE: yamlName,
-                                MANIFEST_DIR: "${KUBE_DIR}/${s}",
-                                GIT_EMAIL: env.GIT_EMAIL,
-                                GIT_USER: env.GIT_USER_NAME,
-                                GIT_REPO: env.GIT_REPO_NAME
-                            )
+                        // Update Kubernetes manifest if YAML exists
+                        def yamlFiles = sh(script: "ls kubernetes-files/${s}/*.yaml 2>/dev/null || echo ''", returnStdout: true).trim()
+                        if (yamlFiles) {
+                            echo "Updating manifest for service: ${s}"
+                            yamlFiles.split("\n").each { yamlFile ->
+                                updateManifest(
+                                    SERVICE_NAME: s,
+                                    ACCOUNT_ID: env.ACCOUNT_ID,
+                                    REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
+                                    YAML_FILE: yamlFile,
+                                    GIT_EMAIL: env.GIT_EMAIL,
+                                    GIT_USER: env.GIT_USER_NAME,
+                                    GIT_REPO: env.GIT_REPO_NAME
+                                )
+                            }
+                        } else {
+                            echo "No YAML found for service: ${s}, skipping manifest update."
                         }
                     }
                 }

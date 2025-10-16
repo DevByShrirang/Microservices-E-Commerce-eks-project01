@@ -24,32 +24,32 @@ pipeline {
         stage('Build & Deploy All Services') {
             steps {
                 script {
-                    // Dynamically get all service names from src/ directory
-                    def services = sh(script: "ls src", returnStdout: true).trim().split("\n")
+                    def services = ["adservice","cartservice","checkoutservice","currencyservice","emailservice",
+                                    "frontend","loadgenerator","paymentservice","productcatalogservice",
+                                    "recommendationservice","shippingservice"]
 
                     for (s in services) {
                         echo "Processing service: ${s}"
+                        try {
+                            buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
 
-                        // Build & push Docker image
-                        buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
-
-                        // Update Kubernetes manifest if YAML exists
-                        def yamlFiles = sh(script: "ls kubernetes-files/${s}/*.yaml 2>/dev/null || echo ''", returnStdout: true).trim()
-                        if (yamlFiles) {
-                            echo "Updating manifest for service: ${s}"
-                            yamlFiles.split("\n").each { yamlFile ->
+                            // Update Kubernetes manifest only if YAML exists
+                            def yamlFiles = sh(script: "ls kubernetes-files/${s}/*.yaml 2>/dev/null || echo ''", returnStdout: true).trim()
+                            if (yamlFiles) {
                                 updateManifest(
                                     SERVICE_NAME: s,
                                     ACCOUNT_ID: env.ACCOUNT_ID,
                                     REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
-                                    YAML_FILE: yamlFile,
+                                    YAML_FILE: "${s}.yaml",
                                     GIT_EMAIL: env.GIT_EMAIL,
                                     GIT_USER: env.GIT_USER_NAME,
                                     GIT_REPO: env.GIT_REPO_NAME
                                 )
+                            } else {
+                                echo "No YAML found for service: ${s}, skipping manifest update."
                             }
-                        } else {
-                            echo "No YAML found for service: ${s}, skipping manifest update."
+                        } catch (err) {
+                            echo "Service ${s} failed, skipping to next. Error: ${err}"
                         }
                     }
                 }

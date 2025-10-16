@@ -1,0 +1,47 @@
+@Library('jenkins-shared-library') _
+
+pipeline {
+    agent any
+    environment {
+        ACCOUNT_ID = "442042505508"
+        REGION = "us-east-2"
+        GIT_EMAIL = "shrirang.patil1812@gmail.com"
+        GIT_USER_NAME = "DevByShrirang"
+        GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps { cleanWs() }
+        }
+
+        stage('Checkout') {
+            steps {
+                git branch: 'master', url: "https://github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git"
+            }
+        }
+
+        stage('Build & Deploy All Services') {
+            steps {
+                script {
+                    def services = ["adservice","cartservice","checkoutservice","currencyservice","emailservice",
+                                    "frontend","loadgenerator","paymentservice","productcatalogservice",
+                                    "recommendationservice","shippingservice"]
+
+                    for (s in services) {
+                        buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
+                        updateManifest(
+                            SERVICE_NAME: s,
+                            ACCOUNT_ID: env.ACCOUNT_ID,
+                            REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
+                            YAML_FILE: "${s}.yaml",
+                            GIT_EMAIL: env.GIT_EMAIL,
+                            GIT_USER: env.GIT_USER_NAME,
+                            GIT_REPO: env.GIT_REPO_NAME
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

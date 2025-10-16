@@ -8,8 +8,6 @@ pipeline {
         GIT_EMAIL = "shrirang.patil1812@gmail.com"
         GIT_USER_NAME = "DevByShrirang"
         GIT_REPO_NAME = "Microservices-E-Commerce-eks-project01"
-        // Default service (can be overridden per build)
-        SERVICE_NAME = "adservice"
     }
 
     stages {
@@ -23,27 +21,28 @@ pipeline {
             }
         }
 
-        stage('Build & Push Docker') {
+        stage('Build & Deploy All Services') {
             steps {
-                buildAndPush(
-                    SERVICE_NAME: env.SERVICE_NAME,
-                    ACCOUNT_ID: env.ACCOUNT_ID,
-                    REGION: env.REGION
-                )
-            }
-        }
+                script {
+                    // ✅ List of all services
+                    def services = ["adservice","cartservice","checkoutservice","currencyservice","emailservice",
+                                    "frontend","loadgenerator","paymentservice","productcatalogservice",
+                                    "recommendationservice","shippingservice"]
 
-        stage('Update Manifest') {
-            steps {
-                updateManifest(
-                    SERVICE_NAME: env.SERVICE_NAME,
-                    ACCOUNT_ID: env.ACCOUNT_ID,
-                    REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${env.SERVICE_NAME}",
-                    YAML_FILE: "${env.SERVICE_NAME}.yaml",
-                    GIT_EMAIL: env.GIT_EMAIL,
-                    GIT_USER: env.GIT_USER_NAME,
-                    GIT_REPO: env.GIT_REPO_NAME
-                )
+                    // Loop through each service dynamically
+                    for (s in services) {
+                        buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
+                        updateManifest(
+                            SERVICE_NAME: s,
+                            ACCOUNT_ID: env.ACCOUNT_ID,
+                            REPO_URL: "${env.ACCOUNT_ID}.dkr.ecr.${env.REGION}.amazonaws.com/${s}",
+                            YAML_FILE: "${s}.yaml",
+                            GIT_EMAIL: env.GIT_EMAIL,
+                            GIT_USER: env.GIT_USER_NAME,
+                            GIT_REPO: env.GIT_REPO_NAME
+                        )
+                    }
+                }
             }
         }
     }

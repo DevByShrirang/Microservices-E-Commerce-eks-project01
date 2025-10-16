@@ -24,12 +24,10 @@ pipeline {
         stage('Build & Deploy All Services') {
             steps {
                 script {
-                    // ✅ List of all services
                     def services = ["adservice","cartservice","checkoutservice","currencyservice","emailservice",
                                     "frontend","loadgenerator","paymentservice","productcatalogservice",
                                     "recommendationservice","shippingservice"]
 
-                    // Loop through each service dynamically
                     for (s in services) {
                         buildAndPush(SERVICE_NAME: s, ACCOUNT_ID: env.ACCOUNT_ID, REGION: env.REGION)
                         updateManifest(

@@ -5,12 +5,5 @@ terraform {
       version = ">= 5.25.0"
     }
   }
-
-  backend "s3" {
-    bucket = "mycompany-billing-dev03"
-    key    = "k8/terraform.tfstate"
-    region = "us-east-2"
-  }
-
   required_version = ">= 1.6.3"
 }
